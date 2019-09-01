@@ -60,6 +60,7 @@ def _projects_to_rebuild(config, event):
     return out
 
 def _all_projects(config):
+    s3 = boto3.resource('s3')
     bucket = s3.Bucket(config['ARTIFACT_BUCKET'])
     out = []
     for obj in bucket.objects.all():
