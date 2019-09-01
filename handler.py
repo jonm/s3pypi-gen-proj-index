@@ -136,7 +136,7 @@ def handle(event, context):
     try:
         projects = _projects_to_rebuild(config, event)
     except:
-        logger.warn("Failed to process event: %s" % (event,), exc_info=True)
+        logging.warn("Failed to process event: %s" % (event,), exc_info=True)
         projects = _all_projects(config)
 
     normalized_projects = _normalize_projects(projects)
