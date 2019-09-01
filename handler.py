@@ -37,6 +37,9 @@ def _get_configuration():
         config[v] = os.environ[v]
     return config
 
+class UnexpectedEventException(Exception):
+    pass
+
 def _projects_to_rebuild(config, event):
     out = []
     update_events = ['ObjectCreated:Put', 'ObjectCreated:Post',
@@ -48,25 +51,37 @@ def _projects_to_rebuild(config, event):
                      'ReducedRedundancyLostObject']
                      
     for record in event['Records']:
-        if record['eventSource'] == 'aws:s3':
+        if 'eventSource' in record and record['eventSource'] == 'aws:s3':
             if record['eventName'] in update_events:
                 proj = record['s3']['object']['key'].split("/")[0]
                 if proj not in out: out.append(proj)
-            elif record['eventSource'] == 'aws:sns':
-                inner = json.loads(record['Sns']['Message'])
-                for proj in _projects_to_rebuild(config, inner):
-                    if proj not in out: out.append(proj)
             else:
-                logging.warn("Unexpected record: %s" % (record,))
+                raise UnexpectedEventException("unknown 'eventName'")
+        elif 'EventSource' in record and record['EventSource'] == 'aws:sns':
+            inner = json.loads(record['Sns']['Message'])
+            for proj in _projects_to_rebuild(config, inner):
+                if proj not in out: out.append(proj)
+        else:
+            raise UnexpectedEventException("no [Ee]ventSource!")
+            
     return out
 
 def _all_projects(config):
-    s3 = boto3.resource('s3')
-    bucket = s3.Bucket(config['ARTIFACT_BUCKET'])
     out = []
-    for obj in bucket.objects.all():
+    s3 = boto3.resource('s3')
+
+    artifact_bucket = s3.Bucket(config['ARTIFACT_BUCKET'])
+    for obj in artifact_bucket.objects.all():
         proj = obj.key.split("/")[0]
         if proj not in out: out.append(proj)
+
+    index_bucket = s3.Bucket(config['INDEX_BUCKET'])
+    for obj in index_bucket.objects.all():
+        if obj.key.find("/") >= 0:
+            path, filename = obj.key.split("/")
+            if filename == "index.html" and path not in out:
+                out.append(path)
+        
     return out
 
 def _normalize(name):
@@ -115,10 +130,10 @@ def _rebuild_project_index(config, project, prefixes):
     artifacts.sort()
 
     if len(artifacts) > 0:
-        html = ("<!DOCTYPE html><html><body>" +
-                ' '.join(map(lambda p: "<a href=\"%s\">%s</a>" % (p[1], p[0]),
+        html = ("<!DOCTYPE html><html><body>\n" +
+                ' '.join(map(lambda p: "<a href=\"%s\">%s</a><br/>\n" % (p[1], p[0]),
                              artifacts)) +
-                "</body></html>")
+                "</body></html>\n")
         proj_idx = s3.Object(config['INDEX_BUCKET'], project + "/index.html")
         proj_idx.put(Body=html,ContentType="text/html")
         redirect = s3.Object(config['INDEX_BUCKET'], project + "/")
