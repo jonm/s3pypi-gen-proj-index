@@ -120,7 +120,7 @@ def _rebuild_project_index(config, project, prefixes):
                              artifacts)) +
                 "</body></html>")
         proj_idx = s3.Object(config['INDEX_BUCKET'], project + "/index.html")
-        proj_idx.put(html)
+        proj_idx.put(Body=html,ContentType="text/html")
         logging.info("Regenerated index for project '%s'" % (project,))
     else:
         logging.info("No artifacts remaining for '%s'" % (project,))
