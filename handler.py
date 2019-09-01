@@ -18,6 +18,7 @@ import os
 import re
 
 import boto3
+import botocore
 
 def _set_logging():
     lvl = os.environ.get('LOG_LEVEL','INFO')
