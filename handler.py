@@ -137,7 +137,8 @@ def _rebuild_project_index(config, project, prefixes):
         proj_idx = s3.Object(config['INDEX_BUCKET'], project + "/index.html")
         proj_idx.put(Body=html,ContentType="text/html")
         redirect = s3.Object(config['INDEX_BUCKET'], project + "/")
-        redirect.put(WebsiteRedirectLocation=("https://%s.s3.amazonaws.com/%s/index.html" % (config['INDEX_BUCKET'], project)))
+        redirect.put(ContentType="text/html",
+                     WebsiteRedirectLocation=("https://%s.s3.amazonaws.com/%s/index.html" % (config['INDEX_BUCKET'], project)))
         logging.info("Regenerated index for project '%s'" % (project,))
     else:
         logging.info("No artifacts remaining for '%s'" % (project,))
